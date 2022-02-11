@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	github.com/go-kit/kit v0.12.0
+	github.com/hashicorp/go-uuid v1.0.1
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.0
 	go.opentelemetry.io/contrib/instrumentation/github.com/go-kit/kit/otelkit v0.28.0
