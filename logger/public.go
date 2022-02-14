@@ -1,18 +1,7 @@
 package logger
 
 import (
-	"context"
-	"errors"
-	"net/http"
-
-	"fmt"
-
-	"time"
-
-	"github.com/go-kit/kit/endpoint"
-	"github.com/hashicorp/go-uuid"
-
-	httptransport "github.com/go-kit/kit/transport/http"
+	"go.uber.org/zap"
 )
 
 // global logger instance
@@ -23,18 +12,15 @@ func Init(loggerMode string) (func(), error) {
 	return lg.initialize(loggerMode)
 }
 
+// GetLogger returns zap.SugaredLogger instance
+func GetLogger() *zap.SugaredLogger {
+	return lg.logger
+}
+
 // Debug logs debug message.
 // See https://pkg.go.dev/go.uber.org/zap#SugaredLogger.Debug for details
 func Debug(args ...interface{}) {
 	lg.logger.Debug(args...)
-}
-
-// Einfo logs with request ID getting from context
-func Einfo(ctx context.Context, args ...interface{}) {
-	reqID, err := getReqID(ctx)
-	if err == nil {
-		lg.logger.Infof("Request ID: %s Payload: %s", reqID, args)
-	}
 }
 
 // Info logs info message.
@@ -135,57 +121,4 @@ func DPanicw(msg string, keysAndValues ...interface{}) {
 // See https://pkg.go.dev/go.uber.org/zap#SugaredLogger.Panicw for details
 func Panicw(msg string, keysAndValues ...interface{}) {
 	lg.logger.Panicw(msg, keysAndValues...)
-}
-
-// ServerErrorLogger return HTTP server error logger for go-kit server
-func ServerErrorLogger() httptransport.ServerOption {
-	return httptransport.ServerErrorLogger(&lg)
-}
-
-// LoggerEndpointMiddleware returns go-kit middlewarefor which logs errors, panics & success (in debug)
-func LoggerEndpointMiddleware() endpoint.Middleware {
-	return func(next endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-			defer func(begin time.Time) {
-				r := recover()
-				if r != nil { // panic
-					Error(fmt.Errorf("Panic: %v", r), request, "duration", time.Since(begin))
-				} else if err != nil { // error
-					Error(err, request, "duration", time.Since(begin))
-				} else { // success
-					Debugw("Success", "payload", request, "duration", time.Since(begin))
-				}
-			}(time.Now())
-
-			return next(ctx, request)
-		}
-	}
-}
-
-// LoggerPathThrough returns a go-kit request function
-// to add the request ID into context for path through logging
-func LoggerPathThrough() httptransport.RequestFunc {
-	return func(ctx context.Context, req *http.Request) context.Context {
-		reqID, err := uuid.GenerateUUID()
-		if err != nil {
-			return ctx
-		}
-		return context.WithValue(ctx, "reqID", reqID)
-	}
-}
-
-// GetReqID returns request ID or error from context
-// for path through logging
-func GetReqID(ctx *context.Context) (reqID string, err error) {
-	return getReqID(*ctx)
-}
-
-// getReqID returns request ID or error from context
-// for path through logging
-func getReqID(ctx context.Context) (reqID string, err error) {
-	val := ctx.Value("reqID")
-	if val == nil {
-		return "", errors.New("can't get reqID from context")
-	}
-	return val.(string), nil
 }
