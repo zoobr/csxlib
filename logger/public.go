@@ -1,9 +1,5 @@
 package logger
 
-import (
-	"go.uber.org/zap"
-)
-
 // global logger instance
 var lg = logger{}
 
@@ -12,9 +8,9 @@ func Init(loggerMode string) (func(), error) {
 	return lg.initialize(loggerMode)
 }
 
-// GetLogger returns zap.SugaredLogger instance
-func GetLogger() *zap.SugaredLogger {
-	return lg.logger
+// GetLogger returns logger instance
+func GetLogger() *logger {
+	return &lg
 }
 
 // Debug logs debug message.
