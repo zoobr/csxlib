@@ -59,3 +59,19 @@ func NewDatabase(params *DatabaseParams) (Database, error) {
 
 	return db, nil
 }
+
+// New creates & registers list of Database instances using list of params
+func New(params ...*DatabaseParams) {
+	cnt := len(params)
+	dbs := make([]Database, 0, cnt)
+
+	for _, p := range params {
+		db, err := NewDatabase(p)
+		if err != nil {
+			panic(err)
+		}
+		dbs = append(dbs, db)
+	}
+
+	manager.MustRegister(dbs...)
+}
