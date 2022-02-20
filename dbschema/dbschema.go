@@ -12,7 +12,15 @@ import (
 	pkgerrs "github.com/pkg/errors"
 )
 
-var manager = schemaManager{} // instance of schema manager
+// Config is a struct for dbschema config
+type Config struct {
+	IsMigrateData bool // whether make data migrations
+}
+
+var (
+	manager = schemaManager{} // instance of schema manager
+	config  = Config{}        //instance of config
+)
 
 // getNewSchemaFields returns list of new table columns
 func getNewSchemaFields(fields []*schemafield.SchemaField, colInfo []*database.DBColumnInfo) []*schemafield.SchemaField {
@@ -151,7 +159,12 @@ func New(params *SchemaParams) *Schema {
 }
 
 // Init initializes dbschema
-func Init() {
+func Init(cfg *Config) {
+	// storing config
+	if cfg != nil {
+		config = *cfg
+	}
+
 	// connecting to all registered databases
 	for _, db := range database.GetAll() {
 		err := db.Connect()
@@ -176,9 +189,15 @@ func Init() {
 		}
 
 		// migrating schemas
-		err := migrateSchema(schema)
-		if err != nil {
+		if err := migrateSchema(schema); err != nil {
 			panic(err)
+		}
+
+		// migrating data
+		if config.IsMigrateData {
+			if err := schema.dbs.master.Migrate(); err != nil {
+				panic(err)
+			}
 		}
 	}
 }

@@ -7,7 +7,8 @@ import (
 
 type Driver string // type of database driver (postgres, mysql etc)
 
-const MAX_OPEN_CONNS = 100 // default max count of opened connections
+const MAX_OPEN_CONNS = 100                      // default max count of opened connections
+const DEFAULT_MIGRATIONS_PATH = "db/migrations" // default path for migrations
 
 // Database is interface providing common methods to support different databases.
 type Database interface {
@@ -26,6 +27,9 @@ type Database interface {
 	CreateTable(tableName string, fields []*schemafield.SchemaField) error
 	// AlterTable updates table in the database according to the schema.
 	AlterTable(tableName string, fields []*schemafield.SchemaField) error
+
+	// Migrate make migrations from source to database
+	Migrate() error
 }
 
 // DatabaseParams is a struct for database params.
