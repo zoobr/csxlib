@@ -9,6 +9,7 @@ type Driver string // type of database driver (postgres, mysql etc)
 
 const (
 	DriverPostgreSQL Driver = "postgres"
+	DriverMySQL      Driver = "mysql"
 )
 const MAX_OPEN_CONNS = 100                      // default max count of opened connections
 const DEFAULT_MIGRATIONS_PATH = "db/migrations" // default path for migrations
@@ -66,6 +67,8 @@ func NewDatabase(params *DatabaseParams) (Database, error) {
 	switch params.Driver {
 	case DriverPostgreSQL:
 		db = &postgreSQL{}
+	case DriverMySQL:
+		db = &mySQL{}
 	}
 	db.Init(params)
 
