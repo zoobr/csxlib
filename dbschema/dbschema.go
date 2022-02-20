@@ -1,6 +1,7 @@
 package dbschema
 
 import (
+	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
@@ -10,6 +11,8 @@ import (
 
 	pkgerrs "github.com/pkg/errors"
 )
+
+var manager = schemaManager{} // instance of schema manager
 
 // prepareSchemaFields creates list of schema fields by model instance
 func prepareSchemaFields(model interface{}) ([]*schemafield.SchemaField, error) {
@@ -81,6 +84,17 @@ func NewSchema(params *SchemaParams) (*Schema, error) {
 	return &schema, nil
 }
 
+// New creates & registers list of Schema instances using list of params. It panics if error occurs.
+func New(params *SchemaParams) *Schema {
+	schema, err := NewSchema(params)
+	if err != nil {
+		panic(err)
+	}
+	manager.MustRegister(schema)
+
+	return schema
+}
+
 // Init initializes dbschema
 func Init() {
 	// connecting to all registered databases
@@ -88,6 +102,22 @@ func Init() {
 		err := db.Connect()
 		if err != nil {
 			panic(err)
+		}
+	}
+
+	for _, schema := range manager.schemas {
+		// adding databases to schema
+		master := database.Get(schema.DatabaseName)
+		if master == nil {
+			panic(fmt.Errorf("database %s not found", schema.DatabaseName))
+		}
+		schema.dbs.master = master
+		if schema.SlaveDatabaseName != nil {
+			slave := database.Get(*schema.SlaveDatabaseName)
+			if slave == nil {
+				panic(fmt.Errorf("database %s not found", *schema.SlaveDatabaseName))
+			}
+			schema.dbs.slave = slave
 		}
 	}
 }
