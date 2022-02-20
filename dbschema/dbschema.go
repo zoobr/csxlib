@@ -14,6 +14,61 @@ import (
 
 var manager = schemaManager{} // instance of schema manager
 
+// getNewSchemaFields returns list of new table columns
+func getNewSchemaFields(fields []*schemafield.SchemaField, colInfo []*database.DBColumnInfo) []*schemafield.SchemaField {
+	fcnt := len(fields)
+	icnt := len(colInfo)
+
+	// no new cols
+	if fcnt == icnt {
+		return []*schemafield.SchemaField{}
+	}
+
+	newFields := make([]*schemafield.SchemaField, 0, fcnt)
+	for i := 0; i < fcnt; i++ {
+		f := fields[i]
+		isExists := false
+		for _, info := range colInfo {
+			if info.Name == f.DBName {
+				isExists = true
+				break
+			}
+		}
+		if !isExists {
+			newFields = append(newFields, f)
+		}
+	}
+
+	return newFields
+}
+
+// migrateSchema makes schema migration
+func migrateSchema(schema *Schema) error {
+	db := schema.dbs.master
+	if !db.IsTableExists(schema.TableName) {
+		// create table if it is not exists
+		err := db.CreateTable(schema.TableName, schema.fields)
+		if err != nil {
+			return err
+		}
+	} else {
+		// alter table if it is exists
+		colInfo, err := db.GetColumnsInfo(schema.TableName)
+		if err != nil {
+			return err
+		}
+		newFields := getNewSchemaFields(schema.fields, colInfo)
+		if len(newFields) > 0 {
+			err := db.AlterTable(schema.TableName, newFields)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 // prepareSchemaFields creates list of schema fields by model instance
 func prepareSchemaFields(model interface{}) ([]*schemafield.SchemaField, error) {
 	modelType := reflect.TypeOf(model)
@@ -118,6 +173,12 @@ func Init() {
 				panic(fmt.Errorf("database %s not found", *schema.SlaveDatabaseName))
 			}
 			schema.dbs.slave = slave
+		}
+
+		// migrating schemas
+		err := migrateSchema(schema)
+		if err != nil {
+			panic(err)
 		}
 	}
 }
