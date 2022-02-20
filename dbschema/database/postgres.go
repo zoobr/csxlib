@@ -93,14 +93,14 @@ func (pgsql *postgreSQL) AlterTable(tableName string, fields []*schemafield.Sche
 // Migrate make migrations from source to database.
 func (pgsql *postgreSQL) Migrate() error {
 	driver, err := postgres.WithInstance(pgsql.conn.DB, &postgres.Config{
-		DatabaseName: pgsql.Name,
+		DatabaseName: pgsql.DBName,
 	})
 	if err != nil {
 		return err
 	}
 
-	sourceURL := fmt.Sprintf("file://%s/%s", DEFAULT_MIGRATIONS_PATH, pgsql.Name)
-	m, err := migrate.NewWithDatabaseInstance(sourceURL, pgsql.Name, driver)
+	sourceURL := fmt.Sprintf("file://%s/%s", DEFAULT_MIGRATIONS_PATH, pgsql.DBName)
+	m, err := migrate.NewWithDatabaseInstance(sourceURL, pgsql.DBName, driver)
 	if err != nil {
 		return err
 	}
@@ -118,10 +118,10 @@ func (pgsql *postgreSQL) prepareColumn(builder *strings.Builder, field *schemafi
 	builder.WriteString(field.DBName)
 	builder.WriteString("\" ")
 	builder.WriteString(field.DBType)
-
 	if field.Length > 0 {
 		builder.WriteString(fmt.Sprintf("(%d)", field.Length))
 	}
+
 	if field.Nullable {
 		builder.WriteString(" NULL")
 	} else {

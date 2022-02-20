@@ -38,7 +38,8 @@ type Database interface {
 
 // DatabaseParams is a struct for database params.
 type DatabaseParams struct {
-	Name             string                 // database name
+	Name             string                 // the name under which the database will be registered
+	DBName           string                 // database name (optional). If is not defined, Name is used
 	Driver           Driver                 // database driver (postgres, mysql etc)
 	ConnectionString string                 // database connection string
 	MaxOpenConns     int                    // max count of opened connections
@@ -61,6 +62,10 @@ func NewDatabase(params *DatabaseParams) (Database, error) {
 	}
 	if params.ConnectionString == "" {
 		return nil, pkgerrs.New("connection string is missing")
+	}
+
+	if params.DBName == "" {
+		params.DBName = params.Name
 	}
 
 	var db Database

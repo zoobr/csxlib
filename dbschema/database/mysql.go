@@ -100,14 +100,14 @@ func (msql *mySQL) AlterTable(tableName string, fields []*schemafield.SchemaFiel
 // Migrate make migrations from source to database.
 func (msql *mySQL) Migrate() error {
 	driver, err := mysql.WithInstance(msql.conn.DB, &mysql.Config{
-		DatabaseName: msql.Name,
+		DatabaseName: msql.DBName,
 	})
 	if err != nil {
 		return err
 	}
 
-	sourceURL := fmt.Sprintf("file://%s/%s", DEFAULT_MIGRATIONS_PATH, msql.Name)
-	m, err := migrate.NewWithDatabaseInstance(sourceURL, msql.Name, driver)
+	sourceURL := fmt.Sprintf("file://%s/%s", DEFAULT_MIGRATIONS_PATH, msql.DBName)
+	m, err := migrate.NewWithDatabaseInstance(sourceURL, msql.DBName, driver)
 	if err != nil {
 		return err
 	}
