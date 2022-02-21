@@ -1,6 +1,7 @@
 package database
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -110,6 +111,43 @@ func (pgsql *postgreSQL) Migrate() error {
 
 // BeginTransaction starts database transaction
 func (pgsql *postgreSQL) BeginTransaction() (*sqlx.Tx, error) { return pgsql.conn.Beginx() }
+
+// Select executes a SELECT statement and stores list of rows into dest. Supports transaction.
+func (pgsql *postgreSQL) Select(tx *sqlx.Tx, dest interface{}, query *Query, args ...interface{}) error {
+	queryStr, err := prepareQuery(query)
+	if err != nil {
+		return err
+	}
+
+	if tx != nil {
+		err = tx.Select(dest, queryStr, args...)
+	} else {
+		err = pgsql.conn.Select(dest, queryStr, args...)
+	}
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+	return nil
+}
+
+// Get executes a SELECT statement and stores result row into dest. Supports transaction.
+func (pgsql *postgreSQL) Get(tx *sqlx.Tx, dest interface{}, query *Query, args ...interface{}) error {
+	query.Limit = 1
+	queryStr, err := prepareQuery(query)
+	if err != nil {
+		return err
+	}
+
+	if tx != nil {
+		err = tx.Get(dest, queryStr, args...)
+	} else {
+		err = pgsql.conn.Get(dest, queryStr, args...)
+	}
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+	return nil
+}
 
 // ----------------------------------------------------------------------------
 // preparing query statements

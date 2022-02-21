@@ -32,7 +32,7 @@ func (dm *databaseManager) Register(db Database) error {
 	return nil
 }
 
-// Register registers list of Database instances in database manager. It panics if error occurs.
+// MustRegister registers list of Database instances in database manager. It panics if error occurs.
 func (dm *databaseManager) MustRegister(dbs ...Database) {
 	for _, db := range dbs {
 		if err := dm.Register(db); err != nil {

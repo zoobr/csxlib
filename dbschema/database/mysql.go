@@ -1,6 +1,7 @@
 package database
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -117,6 +118,43 @@ func (msql *mySQL) Migrate() error {
 
 // BeginTransaction starts database transaction
 func (msql *mySQL) BeginTransaction() (*sqlx.Tx, error) { return msql.conn.Beginx() }
+
+// Select executes a SELECT statement and stores list of rows into dest. Supports transaction.
+func (msql *mySQL) Select(tx *sqlx.Tx, dest interface{}, query *Query, args ...interface{}) error {
+	queryStr, err := prepareQuery(query)
+	if err != nil {
+		return err
+	}
+
+	if tx != nil {
+		err = tx.Select(dest, queryStr, args...)
+	} else {
+		err = msql.conn.Select(dest, queryStr, args...)
+	}
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+	return nil
+}
+
+// Get executes a SELECT statement and stores result row into dest. Supports transaction.
+func (msql *mySQL) Get(tx *sqlx.Tx, dest interface{}, query *Query, args ...interface{}) error {
+	query.Limit = 1
+	queryStr, err := prepareQuery(query)
+	if err != nil {
+		return err
+	}
+
+	if tx != nil {
+		err = tx.Get(dest, queryStr, args...)
+	} else {
+		err = msql.conn.Get(dest, queryStr, args...)
+	}
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+	return nil
+}
 
 // ----------------------------------------------------------------------------
 // preparing query statements

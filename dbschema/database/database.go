@@ -38,6 +38,11 @@ type Database interface {
 
 	// BeginTransaction starts database transaction
 	BeginTransaction() (*sqlx.Tx, error)
+
+	// Select executes a SELECT statement and stores list of rows into dest
+	Select(tx *sqlx.Tx, dest interface{}, query *Query, args ...interface{}) error
+	// Get executes a SELECT statement and stores result row into dest
+	Get(tx *sqlx.Tx, dest interface{}, query *Query, args ...interface{}) error
 }
 
 // DatabaseParams is a struct for database params.

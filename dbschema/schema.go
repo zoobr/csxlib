@@ -28,5 +28,55 @@ type Schema struct {
 	dbs    schemaDatabases            // list of schema databases
 }
 
+// prepareQuery prepares SQL query
+func (s *Schema) prepareQuery(query *database.Query) {
+	if len(query.Select) == 0 {
+		query.Select = "*"
+	}
+	if query.From == nil {
+		query.From = s.TableName
+	}
+}
+
+func (s *Schema) _select(tx *sqlx.Tx, dest interface{}, query *database.Query, args ...interface{}) error {
+	db := s.dbs.master
+	if s.dbs.slave != nil {
+		db = s.dbs.slave
+	}
+	s.prepareQuery(query)
+
+	return db.Select(tx, dest, query, args...)
+}
+
+func (s *Schema) get(tx *sqlx.Tx, dest interface{}, query *database.Query, args ...interface{}) error {
+	db := s.dbs.master
+	if s.dbs.slave != nil {
+		db = s.dbs.slave
+	}
+	s.prepareQuery(query)
+
+	return db.Get(tx, dest, query, args...)
+}
+
 // BeginTransaction starts database transaction
 func (s *Schema) BeginTransaction() (*sqlx.Tx, error) { return s.dbs.master.BeginTransaction() }
+
+// Select executes a SELECT statement and stores list of rows into dest
+func (s *Schema) Select(dest interface{}, query *database.Query, args ...interface{}) error {
+	return s._select(nil, dest, query, args...)
+}
+
+// Select executes a SELECT statement and stores list of rows into dest. Supports transaction.
+func (s *Schema) TransactSelect(tx *sqlx.Tx, dest interface{}, query *database.Query, args ...interface{}) error {
+	return s._select(tx, dest, query, args...)
+}
+
+// SelectOne executes a SELECT statement and stores result row into dest.
+func (s *Schema) SelectOne(dest interface{}, query *database.Query, args ...interface{}) error {
+	return s.get(nil, dest, query, args...)
+}
+
+// SelectOne executes a SELECT statement and stores result row into dest. Supports transaction.
+func (s *Schema) TransactSelectOne(tx *sqlx.Tx, dest interface{}, query *database.Query, args ...interface{}) error {
+	return s.get(tx, dest, query, args...)
+}
