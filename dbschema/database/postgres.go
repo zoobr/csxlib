@@ -108,6 +108,9 @@ func (pgsql *postgreSQL) Migrate() error {
 	return m.Up()
 }
 
+// BeginTransaction starts database transaction
+func (pgsql *postgreSQL) BeginTransaction() (*sqlx.Tx, error) { return pgsql.conn.Beginx() }
+
 // ----------------------------------------------------------------------------
 // preparing query statements
 // ----------------------------------------------------------------------------

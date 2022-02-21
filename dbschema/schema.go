@@ -1,6 +1,7 @@
 package dbschema
 
 import (
+	"github.com/jmoiron/sqlx"
 	"github.com/zoobr/csxlib/dbschema/database"
 	"github.com/zoobr/csxlib/dbschema/schemafield"
 )
@@ -26,3 +27,6 @@ type Schema struct {
 	fields []*schemafield.SchemaField // list of database columns
 	dbs    schemaDatabases            // list of schema databases
 }
+
+// BeginTransaction starts database transaction
+func (s *Schema) BeginTransaction() (*sqlx.Tx, error) { return s.dbs.master.BeginTransaction() }

@@ -115,6 +115,9 @@ func (msql *mySQL) Migrate() error {
 	return m.Up()
 }
 
+// BeginTransaction starts database transaction
+func (msql *mySQL) BeginTransaction() (*sqlx.Tx, error) { return msql.conn.Beginx() }
+
 // ----------------------------------------------------------------------------
 // preparing query statements
 // ----------------------------------------------------------------------------

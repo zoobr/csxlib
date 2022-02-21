@@ -1,6 +1,7 @@
 package database
 
 import (
+	"github.com/jmoiron/sqlx"
 	pkgerrs "github.com/pkg/errors"
 	"github.com/zoobr/csxlib/dbschema/schemafield"
 )
@@ -34,6 +35,9 @@ type Database interface {
 
 	// Migrate make migrations from source to database
 	Migrate() error
+
+	// BeginTransaction starts database transaction
+	BeginTransaction() (*sqlx.Tx, error)
 }
 
 // DatabaseParams is a struct for database params.
