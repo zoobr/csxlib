@@ -1,21 +1,16 @@
 package logger
 
-import (
-	"context"
-	"fmt"
-	"time"
-
-	"github.com/go-kit/kit/endpoint"
-
-	httptransport "github.com/go-kit/kit/transport/http"
-)
-
 // global logger instance
 var lg = logger{}
 
 // Init initializes logger
 func Init(loggerMode string) (func(), error) {
 	return lg.initialize(loggerMode)
+}
+
+// GetLogger returns logger instance
+func GetLogger() *logger {
+	return &lg
 }
 
 // Debug logs debug message.
@@ -122,29 +117,4 @@ func DPanicw(msg string, keysAndValues ...interface{}) {
 // See https://pkg.go.dev/go.uber.org/zap#SugaredLogger.Panicw for details
 func Panicw(msg string, keysAndValues ...interface{}) {
 	lg.logger.Panicw(msg, keysAndValues...)
-}
-
-// ServerErrorLogger return HTTP server error logger for go-kit server
-func ServerErrorLogger() httptransport.ServerOption {
-	return httptransport.ServerErrorLogger(&lg)
-}
-
-// LoggerEndpointMiddleware returns go-ki middlewarefor which logs errors, panics & success (in debug)
-func LoggerEndpointMiddleware() endpoint.Middleware {
-	return func(next endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-			defer func(begin time.Time) {
-				r := recover()
-				if r != nil { // panic
-					Error(fmt.Errorf("Panic: %v", r), request, "duration", time.Since(begin))
-				} else if err != nil { // error
-					Error(err, request, "duration", time.Since(begin))
-				} else { // success
-					Debugw("Success", "payload", request, "duration", time.Since(begin))
-				}
-			}(time.Now())
-
-			return next(ctx, request)
-		}
-	}
 }

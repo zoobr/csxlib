@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-kit/kit/endpoint"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/go-kit/kit/otelkit"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var ot = otelTracer{} // global tracer instance
@@ -22,6 +23,11 @@ func InitNop() {
 // Span creates tracing span, then exec callback & write result to span
 func Span(ctx context.Context, name string, cb func(ctx context.Context) error) context.Context {
 	return ot.span(ctx, name, cb)
+}
+
+// SpatContext returns span and context
+func SpanContext(ctx context.Context, name string) (context.Context, trace.Span) {
+	return ot.tracer.Start(ctx, name)
 }
 
 // TracerEndpointMiddleware returns tracing midleware
