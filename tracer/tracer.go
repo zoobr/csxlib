@@ -2,6 +2,9 @@ package tracer
 
 import (
 	"context"
+	"log"
+	"os"
+	"strings"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
@@ -20,7 +23,26 @@ type otelTracer struct {
 
 // initProvider initializes Jaeger provider
 func (ot *otelTracer) initProvider(jaegerURL, serviceNamespace, serviceName string) error {
-	exporter, err := jaeger.New(jaeger.WithCollectorEndpoint(jaeger.WithEndpoint(jaegerURL)))
+	var endpointOption jaeger.EndpointOption
+
+	if strings.HasPrefix(jaegerURL, "http") {
+		// HTTP/HTTPS - collector mode
+		endpointOption = jaeger.WithCollectorEndpoint(jaeger.WithEndpoint(jaegerURL))
+	} else {
+		// UDP - agent mode
+		hostport := strings.SplitN(jaegerURL, ":", 2)
+		opts := []jaeger.AgentEndpointOption{
+			jaeger.WithAgentHost(hostport[0]),
+			jaeger.WithLogger(log.New(os.Stderr, "Tracer: ", log.Ldate|log.Ltime|log.Lshortfile|log.Lmsgprefix)),
+		}
+		if len(hostport) == 2 {
+			opts = append(opts, jaeger.WithAgentPort(hostport[1]))
+		}
+
+		endpointOption = jaeger.WithAgentEndpoint(opts...)
+	}
+
+	exporter, err := jaeger.New(endpointOption)
 	if err != nil {
 		return err
 	}
