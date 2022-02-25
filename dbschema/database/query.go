@@ -53,20 +53,20 @@ func (q *Query) SetDefaults(tableName string) {
 func prepareFromClause(builder *strings.Builder, cl interface{}) error {
 	builder.WriteString("\nFROM ")
 
-	switch cl := cl.(type) {
+	switch clause := cl.(type) {
 	case string:
-		builder.WriteString(cl)
+		builder.WriteString(clause)
 	case *AliasedQuery:
-		if len(cl.Alias) == 0 {
+		if len(clause.Alias) == 0 {
 			return pkgerrs.New("the subquery in the FROM clause must have an alias")
 		}
 
 		builder.WriteByte('(')
-		err := prepareSelectStatement(builder, &cl.Query)
+		err := prepareSelectStatement(builder, &clause.Query)
 		if err != nil {
 			return err
 		}
-		builder.WriteString(fmt.Sprintf(") AS %s", cl.Alias))
+		builder.WriteString(fmt.Sprintf(") AS %s", clause.Alias))
 	default:
 		return pkgerrs.New("FROM clause must be string or *database.Query")
 	}
@@ -191,8 +191,6 @@ func prepareQuery(q *Query) (string, error) {
 			return "", err
 		}
 	}
-
-	sb.WriteByte(';')
 
 	return sb.String(), nil
 }
