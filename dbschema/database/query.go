@@ -39,6 +39,16 @@ type Query struct {
 	Offset int         // OFFSET clause
 }
 
+// SetDefaults sets default values for some obligatory query fields
+func (q *Query) SetDefaults(tableName string) {
+	if len(q.Select) == 0 {
+		q.Select = "*"
+	}
+	if q.From == nil {
+		q.From = tableName
+	}
+}
+
 // prepareFromClause prepares SQL string for FROM clause.
 func prepareFromClause(builder *strings.Builder, cl interface{}) error {
 	builder.WriteString("\nFROM ")

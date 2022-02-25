@@ -28,22 +28,12 @@ type Schema struct {
 	dbs    schemaDatabases            // list of schema databases
 }
 
-// prepareQuery prepares SQL query
-func (s *Schema) prepareQuery(query *database.Query) {
-	if len(query.Select) == 0 {
-		query.Select = "*"
-	}
-	if query.From == nil {
-		query.From = s.TableName
-	}
-}
-
 func (s *Schema) _select(tx *sqlx.Tx, dest interface{}, query *database.Query, args ...interface{}) error {
 	db := s.dbs.master
 	if s.dbs.slave != nil {
 		db = s.dbs.slave
 	}
-	s.prepareQuery(query)
+	query.SetDefaults(s.TableName)
 
 	return db.Select(tx, dest, query, args...)
 }
@@ -53,7 +43,7 @@ func (s *Schema) get(tx *sqlx.Tx, dest interface{}, query *database.Query, args 
 	if s.dbs.slave != nil {
 		db = s.dbs.slave
 	}
-	s.prepareQuery(query)
+	query.SetDefaults(s.TableName)
 
 	return db.Get(tx, dest, query, args...)
 }
