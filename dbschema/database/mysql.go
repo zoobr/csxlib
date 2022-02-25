@@ -228,16 +228,22 @@ func (msql *mySQL) prepareCreateTableStmt(tableName string, fields []*schemafiel
 // prepareAddColumnsStmt prepares string of SQL ALTER TABLE ADD COLUMN statement.
 func (msql *mySQL) prepareAddColumnsStmt(tableName string, fields []*schemafield.SchemaField) string {
 	var sb strings.Builder
+	cnt := len(fields)
 
-	for i := 0; i < len(fields); i++ {
+	sb.WriteString("ALTER TABLE `")
+	sb.WriteString(tableName)
+	sb.WriteByte('`')
+
+	for i := 0; i < cnt; i++ {
 		f := fields[i]
 
-		sb.WriteString("ALTER TABLE `")
-		sb.WriteString(tableName)
-		sb.WriteString("` ADD ")
+		sb.WriteString("\nADD ")
 		msql.prepareColumn(&sb, f)
-		sb.WriteString(";\n")
+		if i != cnt-1 { // if not last column
+			sb.WriteByte(',')
+		}
 	}
+	sb.WriteByte(';')
 
 	return sb.String()
 }
