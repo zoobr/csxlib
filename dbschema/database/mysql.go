@@ -1,7 +1,6 @@
 package database
 
 import (
-	"database/sql"
 	"fmt"
 	"strings"
 
@@ -127,14 +126,9 @@ func (msql *mySQL) Select(tx *sqlx.Tx, dest interface{}, query *Query, args ...i
 	}
 
 	if tx != nil {
-		err = tx.Select(dest, queryStr, args...)
-	} else {
-		err = msql.conn.Select(dest, queryStr, args...)
+		return tx.Select(dest, queryStr, args...)
 	}
-	if err != nil && err != sql.ErrNoRows {
-		return err
-	}
-	return nil
+	return msql.conn.Select(dest, queryStr, args...)
 }
 
 // Get executes a SELECT statement and stores result row into dest. Supports transaction.
@@ -146,14 +140,9 @@ func (msql *mySQL) Get(tx *sqlx.Tx, dest interface{}, query *Query, args ...inte
 	}
 
 	if tx != nil {
-		err = tx.Get(dest, queryStr, args...)
-	} else {
-		err = msql.conn.Get(dest, queryStr, args...)
+		return tx.Get(dest, queryStr, args...)
 	}
-	if err != nil && err != sql.ErrNoRows {
-		return err
-	}
-	return nil
+	return msql.conn.Get(dest, queryStr, args...)
 }
 
 // ----------------------------------------------------------------------------

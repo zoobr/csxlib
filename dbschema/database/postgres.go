@@ -1,7 +1,6 @@
 package database
 
 import (
-	"database/sql"
 	"fmt"
 	"strings"
 
@@ -120,14 +119,9 @@ func (pgsql *postgreSQL) Select(tx *sqlx.Tx, dest interface{}, query *Query, arg
 	}
 
 	if tx != nil {
-		err = tx.Select(dest, queryStr, args...)
-	} else {
-		err = pgsql.conn.Select(dest, queryStr, args...)
+		return tx.Select(dest, queryStr, args...)
 	}
-	if err != nil && err != sql.ErrNoRows {
-		return err
-	}
-	return nil
+	return pgsql.conn.Select(dest, queryStr, args...)
 }
 
 // Get executes a SELECT statement and stores result row into dest. Supports transaction.
@@ -139,14 +133,9 @@ func (pgsql *postgreSQL) Get(tx *sqlx.Tx, dest interface{}, query *Query, args .
 	}
 
 	if tx != nil {
-		err = tx.Get(dest, queryStr, args...)
-	} else {
-		err = pgsql.conn.Get(dest, queryStr, args...)
+		return tx.Get(dest, queryStr, args...)
 	}
-	if err != nil && err != sql.ErrNoRows {
-		return err
-	}
-	return nil
+	return pgsql.conn.Get(dest, queryStr, args...)
 }
 
 // ----------------------------------------------------------------------------
