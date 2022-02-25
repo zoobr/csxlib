@@ -85,7 +85,7 @@ func prepareSchemaFields(model interface{}) ([]*schemafield.SchemaField, error) 
 	}
 
 	fcnt := modelType.NumField()
-	fields := make([]*schemafield.SchemaField, fcnt)
+	fields := make([]*schemafield.SchemaField, 0, fcnt)
 	for i := 0; i < fcnt; i++ {
 		f := modelType.Field(i)
 		dbName := f.Tag.Get("db") // field name in DB
@@ -103,7 +103,7 @@ func prepareSchemaFields(model interface{}) ([]*schemafield.SchemaField, error) 
 			Name:     f.Name,
 			DBName:   dbName,
 			DBType:   dbType,
-			Nullable: fKind == reflect.Ptr || fKind == reflect.Map,
+			Nullable: fKind == reflect.Ptr || fKind == reflect.Map || fKind == reflect.Interface,
 			Length:   length,
 			Default:  f.Tag.Get("def"),
 			Comment:  f.Tag.Get("comment"),
@@ -126,7 +126,7 @@ func prepareSchemaFields(model interface{}) ([]*schemafield.SchemaField, error) 
 			return nil, pkgerrs.Errorf("primary key '%s' (%s) is nullable", dbName, f.Name)
 		}
 
-		fields[i] = &field
+		fields = append(fields, &field)
 	}
 
 	return fields, nil
