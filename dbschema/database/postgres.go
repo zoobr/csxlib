@@ -204,6 +204,32 @@ func (pgsql *postgreSQL) Update(tx *sqlx.Tx, prepared *PreparedData, tableName, 
 	return err
 }
 
+// Delete executes DELETE statement which removes data from DB and returns values if it needs
+func (pgsql *postgreSQL) Delete(tx *sqlx.Tx, tableName, where string, ret *ReturningDest, args ...interface{}) error {
+	// RETURNING clause is exists
+	if ret != nil {
+		if ret.dest == nil {
+			return pkgerrs.New("missing destinations for RETURNING clause")
+		}
+
+		query := pgsql.prepareDeleteStmt(tableName, where, ret.list)
+		if tx != nil {
+			return tx.QueryRowx(query, args...).Scan(ret.dest...)
+		}
+		return pgsql.conn.QueryRowx(query, args...).Scan(ret.dest...)
+	}
+
+	// RETURNING clause is not exists
+	query := pgsql.prepareDeleteStmt(tableName, where)
+	var err error
+	if tx != nil {
+		_, err = tx.Exec(query, args...)
+	} else {
+		_, err = pgsql.conn.Exec(query, args...)
+	}
+	return err
+}
+
 // ----------------------------------------------------------------------------
 // preparing query statements
 // ----------------------------------------------------------------------------
@@ -425,4 +451,23 @@ func (pgsql *postgreSQL) prepareUpdateStmt(tableName, where string, argsLen int,
 	sb.WriteByte(';')
 
 	return sb.String(), nil
+}
+
+// prepareDeleteStmt prepares DELETE statement.
+func (pgsql *postgreSQL) prepareDeleteStmt(tableName, where string, returning ...string) string {
+	var sb strings.Builder
+
+	sb.WriteString("DELETE FROM ")
+	sb.WriteString(tableName)
+	sb.WriteString(" WHERE ")
+	sb.WriteString(where)
+
+	if len(returning) == 1 {
+		sb.WriteString(" RETURNING ")
+		sb.WriteString(returning[0])
+	}
+
+	sb.WriteByte(';')
+
+	return sb.String()
 }

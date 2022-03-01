@@ -228,6 +228,23 @@ func (msql *mySQL) Update(tx *sqlx.Tx, prepared *PreparedData, tableName, where 
 	return err
 }
 
+// Delete executes DELETE statement which removes data from DB.
+// It does not support RETURNING clause.
+func (msql *mySQL) Delete(tx *sqlx.Tx, tableName, where string, ret *ReturningDest, args ...interface{}) error {
+	if ret != nil {
+		return pkgerrs.New("MySQL does not support RETURNING clause in DELETE statement")
+	}
+
+	query := msql.prepareDeleteStmt(tableName, where)
+	var err error
+	if tx != nil {
+		_, err = tx.Exec(query, args...)
+	} else {
+		_, err = msql.conn.Exec(query, args...)
+	}
+	return err
+}
+
 // ----------------------------------------------------------------------------
 // preparing query statements
 // ----------------------------------------------------------------------------
@@ -421,4 +438,17 @@ func (msql *mySQL) prepareUpdateStmt(tableName, where string, argsLen int, field
 	sb.WriteByte(';')
 
 	return sb.String(), nil
+}
+
+// prepareDeleteStmt prepares DELETE statement.
+func (msql *mySQL) prepareDeleteStmt(tableName, where string) string {
+	var sb strings.Builder
+
+	sb.WriteString("DELETE FROM `")
+	sb.WriteString(tableName)
+	sb.WriteString("` WHERE ")
+	sb.WriteString(where)
+	sb.WriteByte(';')
+
+	return sb.String()
 }

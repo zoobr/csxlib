@@ -118,3 +118,23 @@ func (s *Schema) UpdateRet(data interface{}, where string, ret *database.Returni
 func (s *Schema) TransactUpdateRet(tx *sqlx.Tx, data interface{}, where string, ret *database.ReturningDest, args ...interface{}) error {
 	return s.update(tx, data, where, ret, args...)
 }
+
+// Delete executes DELETE statement which removes data from DB.
+func (s *Schema) Delete(where string, args ...interface{}) error {
+	return s.dbs.master.Delete(nil, s.TableName, where, nil, args...)
+}
+
+// Delete executes DELETE statement which removes data from DB. Supports transaction.
+func (s *Schema) TransactDelete(tx *sqlx.Tx, where string, args ...interface{}) error {
+	return s.dbs.master.Delete(tx, s.TableName, where, nil, args...)
+}
+
+// Delete executes DELETE statement which removes data from DB and returns values if it needs.
+func (s *Schema) DeleteRet(where string, ret *database.ReturningDest, args ...interface{}) error {
+	return s.dbs.master.Delete(nil, s.TableName, where, ret, args...)
+}
+
+// Delete executes DELETE statement which removes data from DB and returns values if it needs. Supports transaction.
+func (s *Schema) TransactDeleteRet(tx *sqlx.Tx, where string, ret *database.ReturningDest, args ...interface{}) error {
+	return s.dbs.master.Delete(tx, s.TableName, where, ret, args...)
+}
