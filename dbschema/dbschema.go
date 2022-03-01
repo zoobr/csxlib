@@ -88,10 +88,17 @@ func prepareSchemaFields(model interface{}) ([]*schemafield.SchemaField, error) 
 	fields := make([]*schemafield.SchemaField, 0, fcnt)
 	for i := 0; i < fcnt; i++ {
 		f := modelType.Field(i)
+
 		dbName := f.Tag.Get("db") // field name in DB
 		if len(dbName) == 0 || dbName == "-" {
 			continue
 		}
+		migratable := true
+		dbNames := strings.Split(dbName, ",")
+		if len(dbNames) == 2 {
+			migratable = dbNames[1] != "nomigrate"
+		}
+
 		dbType := f.Tag.Get("type")
 		if len(dbType) == 0 {
 			return nil, pkgerrs.Errorf("type for field '%s' (%s) is missing", dbName, f.Name)
@@ -100,13 +107,14 @@ func prepareSchemaFields(model interface{}) ([]*schemafield.SchemaField, error) 
 		fKind := f.Type.Kind()
 		length, _ := strconv.Atoi(f.Tag.Get("len"))
 		field := schemafield.SchemaField{
-			Name:     f.Name,
-			DBName:   dbName,
-			DBType:   dbType,
-			Nullable: fKind == reflect.Ptr || fKind == reflect.Map || fKind == reflect.Interface,
-			Length:   length,
-			Default:  f.Tag.Get("def"),
-			Comment:  f.Tag.Get("comment"),
+			Name:       f.Name,
+			Migratable: migratable,
+			DBName:     dbNames[0],
+			DBType:     dbType,
+			Nullable:   fKind == reflect.Ptr || fKind == reflect.Map || fKind == reflect.Interface,
+			Length:     length,
+			Default:    f.Tag.Get("def"),
+			Comment:    f.Tag.Get("comment"),
 		}
 
 		key := f.Tag.Get("key")
