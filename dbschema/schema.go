@@ -16,7 +16,7 @@ type schemaDatabases struct {
 type SchemaParams struct {
 	Name              string      // schema name
 	DatabaseName      string      // database name
-	SlaveDatabaseName *string     // slave database name (is exists)
+	SlaveDatabaseName string      // slave database name (is exists)
 	TableName         string      // name of table in database
 	Model             interface{} // instance of model
 }

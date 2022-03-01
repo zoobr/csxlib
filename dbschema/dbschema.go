@@ -180,10 +180,10 @@ func Init(cfg *Config) {
 			panic(fmt.Errorf("database %s not found", schema.DatabaseName))
 		}
 		schema.dbs.master = master
-		if schema.SlaveDatabaseName != nil {
-			slave := database.Get(*schema.SlaveDatabaseName)
+		if len(schema.SlaveDatabaseName) > 0 {
+			slave := database.Get(schema.SlaveDatabaseName)
 			if slave == nil {
-				panic(fmt.Errorf("database %s not found", *schema.SlaveDatabaseName))
+				panic(fmt.Errorf("database %s not found", schema.SlaveDatabaseName))
 			}
 			schema.dbs.slave = slave
 		}
