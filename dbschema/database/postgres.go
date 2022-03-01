@@ -170,6 +170,40 @@ func (pgsql *postgreSQL) Insert(tx *sqlx.Tx, prepared *PreparedData, tableName s
 	return err
 }
 
+// Update executes UPDATE statement which updates data in DB and returns values if it needs.
+func (pgsql *postgreSQL) Update(tx *sqlx.Tx, prepared *PreparedData, tableName, where string, ret *ReturningDest, args ...interface{}) error {
+	// 1 - args for WHERE clause, 2 - values for updating
+	allArgs := append(args, prepared.Values...)
+
+	// RETURNING clause is exists
+	if ret != nil {
+		if ret.dest == nil {
+			return pkgerrs.New("missing destinations for RETURNING clause")
+		}
+
+		query, err := pgsql.prepareUpdateStmt(tableName, where, len(args), prepared.DBFields, prepared.Queries, ret.list)
+		if err != nil {
+			return err
+		}
+		if tx != nil {
+			return tx.QueryRowx(query, allArgs...).Scan(ret.dest...)
+		}
+		return pgsql.conn.QueryRowx(query, allArgs...).Scan(ret.dest...)
+	}
+
+	// RETURNING clause is not exists
+	query, err := pgsql.prepareUpdateStmt(tableName, where, len(args), prepared.DBFields, prepared.Queries)
+	if err != nil {
+		return err
+	}
+	if tx != nil {
+		_, err = tx.Exec(query, allArgs...)
+	} else {
+		_, err = pgsql.conn.Exec(query, allArgs...)
+	}
+	return err
+}
+
 // ----------------------------------------------------------------------------
 // preparing query statements
 // ----------------------------------------------------------------------------
@@ -336,6 +370,56 @@ func (pgsql *postgreSQL) prepareInsertStmt(tableName string, fields []string, ar
 			sb.WriteString("\nRETURNING ")
 			sb.WriteString(ext.Returning.list)
 		}
+	}
+
+	sb.WriteByte(';')
+
+	return sb.String(), nil
+}
+
+// prepareUpdateStmt prepares UPDATE statement.
+func (pgsql *postgreSQL) prepareUpdateStmt(tableName, where string, argsLen int, fields []string, queries map[string]*Query, returning ...string) (string, error) {
+	var sb strings.Builder
+
+	sb.WriteString("UPDATE ")
+	sb.WriteString(tableName)
+	sb.WriteString(" SET ")
+
+	// args is values
+	cntf := len(fields)
+	argNum := argsLen + 1
+	for i := 0; i < cntf; i++ {
+		sb.WriteString(fmt.Sprintf("%s = $%d", fields[i], argNum))
+		if i != cntf-1 { // if not last field
+			sb.WriteString(", ")
+		}
+		argNum++
+	}
+
+	// args is queries
+	cntq, i := len(queries), 0
+	if cntq > 0 {
+		sb.WriteString(", ")
+		for field, query := range queries {
+			queryStr, err := prepareQuery(query)
+			if err != nil {
+				return "", err
+			}
+
+			sb.WriteString(fmt.Sprintf("%s = (%s)", field, queryStr))
+			if i != cntq-1 { // if not last query
+				sb.WriteString(", ")
+			}
+			i++
+		}
+	}
+
+	sb.WriteString(" WHERE ")
+	sb.WriteString(where)
+
+	if len(returning) == 1 {
+		sb.WriteString(" RETURNING ")
+		sb.WriteString(returning[0])
 	}
 
 	sb.WriteByte(';')

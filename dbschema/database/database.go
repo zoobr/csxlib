@@ -45,6 +45,8 @@ type Database interface {
 	Get(tx *sqlx.Tx, dest interface{}, query *Query, args ...interface{}) error
 	// Insert executes INSERT statement which saves data to DB and returns values if it needs.
 	Insert(tx *sqlx.Tx, prepared *PreparedData, tableName string, ext *InsertExt, args ...interface{}) error
+	// Update executes UPDATE statement which updates data in DB and returns values if it needs.
+	Update(tx *sqlx.Tx, prepared *PreparedData, tableName, where string, ret *ReturningDest, args ...interface{}) error
 }
 
 // DatabaseParams is a struct for database params.

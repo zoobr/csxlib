@@ -57,6 +57,15 @@ func (s *Schema) insert(tx *sqlx.Tx, data interface{}, ext *database.InsertExt, 
 	return s.dbs.master.Insert(tx, prepared, s.TableName, ext, args...)
 }
 
+func (s *Schema) update(tx *sqlx.Tx, data interface{}, where string, ret *database.ReturningDest, args ...interface{}) error {
+	prepared, err := database.PrepareData(data, s.fields)
+	if err != nil {
+		return err
+	}
+
+	return s.dbs.master.Update(tx, prepared, s.TableName, where, ret, args...)
+}
+
 // BeginTransaction starts database transaction
 func (s *Schema) BeginTransaction() (*sqlx.Tx, error) { return s.dbs.master.BeginTransaction() }
 
@@ -88,4 +97,24 @@ func (s *Schema) Insert(data interface{}, ext *database.InsertExt, args ...inter
 // Insert executes INSERT statement which saves data to DB and returns values if it needs. Supports transaction.
 func (s *Schema) TransactInsert(tx *sqlx.Tx, data interface{}, ext *database.InsertExt, args ...interface{}) error {
 	return s.insert(tx, data, ext, args...)
+}
+
+// Update executes UPDATE statement which updates data in DB.
+func (s *Schema) Update(data interface{}, where string, args ...interface{}) error {
+	return s.update(nil, data, where, nil, args...)
+}
+
+// Update executes UPDATE statement which updates data in DB. Supports transaction.
+func (s *Schema) TransactUpdate(tx *sqlx.Tx, data interface{}, where string, ret *database.ReturningDest, args ...interface{}) error {
+	return s.update(tx, data, where, nil, args...)
+}
+
+// Update executes UPDATE statement which updates data in DB and returns values if it needs.
+func (s *Schema) UpdateRet(data interface{}, where string, ret *database.ReturningDest, args ...interface{}) error {
+	return s.update(nil, data, where, ret, args...)
+}
+
+// Update executes UPDATE statement which updates data in DB and returns values if it needs. Supports transaction.
+func (s *Schema) TransactUpdateRet(tx *sqlx.Tx, data interface{}, where string, ret *database.ReturningDest, args ...interface{}) error {
+	return s.update(tx, data, where, ret, args...)
 }

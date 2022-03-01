@@ -207,6 +207,27 @@ func (msql *mySQL) Insert(tx *sqlx.Tx, prepared *PreparedData, tableName string,
 	return err
 }
 
+// Update executes UPDATE statement which updates data in DB.
+// It does not support ON CONFLICT and RETURNING clauses.
+func (msql *mySQL) Update(tx *sqlx.Tx, prepared *PreparedData, tableName, where string, ret *ReturningDest, args ...interface{}) error {
+	if ret != nil {
+		return pkgerrs.New("MySQL does not support RETURNING clause in UPDATE statement")
+	}
+
+	// 1 - values for updating, 2 - args for WHERE clause
+	allArgs := append(prepared.Values, args...)
+	query, err := msql.prepareUpdateStmt(tableName, where, len(args), prepared.DBFields, prepared.Queries)
+	if err != nil {
+		return err
+	}
+	if tx != nil {
+		_, err = tx.Exec(query, allArgs...)
+	} else {
+		_, err = msql.conn.Exec(query, allArgs...)
+	}
+	return err
+}
+
 // ----------------------------------------------------------------------------
 // preparing query statements
 // ----------------------------------------------------------------------------
@@ -355,6 +376,48 @@ func (msql *mySQL) prepareInsertStmt(tableName string, fields []string, argsLen,
 		return "", pkgerrs.New("MySQL does not support ON CONFLICT clause in INSERT statement")
 	}
 
+	sb.WriteByte(';')
+
+	return sb.String(), nil
+}
+
+// prepareUpdateStmt prepares UPDATE statement.
+func (msql *mySQL) prepareUpdateStmt(tableName, where string, argsLen int, fields []string, queries map[string]*Query) (string, error) {
+	var sb strings.Builder
+
+	sb.WriteString("UPDATE `")
+	sb.WriteString(tableName)
+	sb.WriteString("` SET ")
+
+	// args is values
+	cntf := len(fields)
+	for i := 0; i < cntf; i++ {
+		sb.WriteString(fmt.Sprintf("`%s` = ?", fields[i]))
+		if i != cntf-1 { // if not last field
+			sb.WriteString(", ")
+		}
+	}
+
+	// args is queries
+	cntq, i := len(queries), 0
+	if cntq > 0 {
+		sb.WriteString(", ")
+		for field, query := range queries {
+			queryStr, err := prepareQuery(query)
+			if err != nil {
+				return "", err
+			}
+
+			sb.WriteString(fmt.Sprintf("`%s` = (%s)", field, queryStr))
+			if i != cntq-1 { // if not last query
+				sb.WriteString(", ")
+			}
+			i++
+		}
+	}
+
+	sb.WriteString(" WHERE ")
+	sb.WriteString(where)
 	sb.WriteByte(';')
 
 	return sb.String(), nil
