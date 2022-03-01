@@ -11,3 +11,13 @@ type SchemaField struct {
 	Default      string // default column value (golang tag `def`)
 	Comment      string // column comment (golang tag `comment`)
 }
+
+// IsFieldExistsByDBName checks if a field with the given db name exists
+func IsFieldExistsByDBName(fields []*SchemaField, dbName string) bool {
+	for _, f := range fields {
+		if f.DBName == dbName {
+			return true
+		}
+	}
+	return false
+}
