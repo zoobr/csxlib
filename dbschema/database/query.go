@@ -194,3 +194,24 @@ func prepareQuery(q *Query) (string, error) {
 
 	return sb.String(), nil
 }
+
+// ----------------------------------------------------------------------------
+// INSERT statement
+// ----------------------------------------------------------------------------
+
+const (
+	OnConflictDoNothing = iota // ON CONFLICT DO NOTTHING strategy
+)
+
+// ConflictClause s a struct that represents ON CONFLICT clause.
+type ConflictClause struct {
+	Object   string
+	Strategy int
+}
+
+// InsertExt is a struct that represents the extended clauses of INSERT statement.
+type InsertExt struct {
+	WhereNotExists string          // WHERE clause for inserting if not exists.
+	OnConflict     *ConflictClause // ON CONFLICT clause. Doesn't supports in MySQL.
+	Returning      *ReturningDest  // RETURNING clause & list of destinations.
+}

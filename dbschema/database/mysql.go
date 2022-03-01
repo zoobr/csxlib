@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	pkgerrs "github.com/pkg/errors"
 	"github.com/zoobr/csxlib/dbschema/schemafield"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -145,6 +146,67 @@ func (msql *mySQL) Get(tx *sqlx.Tx, dest interface{}, query *Query, args ...inte
 	return msql.conn.Get(dest, queryStr, args...)
 }
 
+// Insert executes INSERT statement which saves data to DB.
+// Is does not support ON CONFLICT clause and only support returning of last insert ID.
+func (msql *mySQL) Insert(tx *sqlx.Tx, prepared *PreparedData, tableName string, ext *InsertExt, args ...interface{}) error {
+	// 1 - values for updating, 2 - args for WHERE clause
+	allArgs := append(prepared.Values, args...)
+	query, err := msql.prepareInsertStmt(tableName, prepared.DBFields, len(args), len(prepared.Values), prepared.Query, ext)
+	if err != nil {
+		return err
+	}
+	isRet := ext != nil && ext.Returning != nil
+
+	// RETURNING clause is exists
+	if isRet {
+		if len(ext.Returning.dest) > 1 {
+			return pkgerrs.New("MySQL supports only last insert ID returning")
+		}
+
+		// transaction is exists
+		if tx != nil {
+			_, err = tx.Exec(query, allArgs...)
+			if err != nil {
+				return err
+			}
+			err = tx.Select(ext.Returning.dest, "SELECT LAST_INSERT_ID();")
+			if err != nil {
+				return err
+			}
+		} else {
+			// transaction is not exists - need to begin
+			tx, err = msql.BeginTransaction()
+			if err != nil {
+				return err
+			}
+			_, err = tx.Exec(query, allArgs...)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+			err = tx.Select(ext.Returning.dest, "SELECT LAST_INSERT_ID();")
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+			err = tx.Commit()
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
+		}
+		return nil
+	}
+
+	// RETURNING clause is not exists
+	if tx != nil {
+		_, err = tx.Exec(query, allArgs...)
+	} else {
+		_, err = msql.conn.Exec(query, allArgs...)
+	}
+	return err
+}
+
 // ----------------------------------------------------------------------------
 // preparing query statements
 // ----------------------------------------------------------------------------
@@ -246,4 +308,54 @@ func (msql *mySQL) prepareAddColumnsStmt(tableName string, fields []*schemafield
 	sb.WriteByte(';')
 
 	return sb.String()
+}
+
+// prepareInsertStmt prepares INSERT statement.
+func (msql *mySQL) prepareInsertStmt(tableName string, fields []string, argsLen, valsLen int, q *Query, ext *InsertExt) (string, error) {
+	var sb strings.Builder
+	cntf := len(fields)
+
+	sb.WriteString("INSERT INTO `")
+	sb.WriteString(tableName)
+	sb.WriteString("` (")
+
+	for i := 0; i < cntf; i++ {
+		sb.WriteString(fmt.Sprintf("`%s`", fields[i]))
+		if i != cntf-1 { // if not last field
+			sb.WriteByte(',')
+		}
+	}
+	sb.WriteByte(')')
+
+	if q != nil {
+		// values gets from SELECT query
+		selectStmt, err := prepareQuery(q)
+		if err != nil {
+			return "", err
+		}
+		sb.WriteString(fmt.Sprintf("\n(%s)", selectStmt))
+	} else if ext != nil && len(ext.WhereNotExists) > 0 {
+		// values gets from WHERE NOT EXISTS query
+		sb.WriteString("\nSELECT ")
+		sb.WriteString(strings.Repeat("?, ", argsLen-1))
+		sb.WriteByte('?') // last ? without comma
+
+		sb.WriteString(" WHERE NOT EXISTS\n(SELECT * FROM `")
+		sb.WriteString(tableName)
+		sb.WriteString("` WHERE ")
+		sb.WriteString(ext.WhereNotExists)
+		sb.WriteByte(')')
+	} else {
+		// values gets from binding
+		sb.WriteString(fmt.Sprintf(" VALUES (%s", strings.Repeat("?", valsLen-1)))
+		sb.WriteString("?)") // last ? without comma
+	}
+
+	if ext != nil && ext.OnConflict != nil {
+		return "", pkgerrs.New("MySQL does not support ON CONFLICT clause in INSERT statement")
+	}
+
+	sb.WriteByte(';')
+
+	return sb.String(), nil
 }

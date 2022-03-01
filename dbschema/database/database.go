@@ -43,6 +43,8 @@ type Database interface {
 	Select(tx *sqlx.Tx, dest interface{}, query *Query, args ...interface{}) error
 	// Get executes a SELECT statement and stores result row into dest
 	Get(tx *sqlx.Tx, dest interface{}, query *Query, args ...interface{}) error
+	// Insert executes INSERT statement which saves data to DB and returns values if it needs.
+	Insert(tx *sqlx.Tx, prepared *PreparedData, tableName string, ext *InsertExt, args ...interface{}) error
 }
 
 // DatabaseParams is a struct for database params.

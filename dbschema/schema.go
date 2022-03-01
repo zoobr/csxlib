@@ -48,6 +48,15 @@ func (s *Schema) get(tx *sqlx.Tx, dest interface{}, query *database.Query, args 
 	return db.Get(tx, dest, query, args...)
 }
 
+func (s *Schema) insert(tx *sqlx.Tx, data interface{}, ext *database.InsertExt, args ...interface{}) error {
+	prepared, err := database.PrepareData(data, s.fields)
+	if err != nil {
+		return err
+	}
+
+	return s.dbs.master.Insert(tx, prepared, s.TableName, ext, args...)
+}
+
 // BeginTransaction starts database transaction
 func (s *Schema) BeginTransaction() (*sqlx.Tx, error) { return s.dbs.master.BeginTransaction() }
 
@@ -69,4 +78,14 @@ func (s *Schema) SelectOne(dest interface{}, query *database.Query, args ...inte
 // SelectOne executes a SELECT statement and stores result row into dest. Supports transaction.
 func (s *Schema) TransactSelectOne(tx *sqlx.Tx, dest interface{}, query *database.Query, args ...interface{}) error {
 	return s.get(tx, dest, query, args...)
+}
+
+// Insert executes INSERT statement which saves data to DB and returns values if it needs.
+func (s *Schema) Insert(data interface{}, ext *database.InsertExt, args ...interface{}) error {
+	return s.insert(nil, data, ext, args...)
+}
+
+// Insert executes INSERT statement which saves data to DB and returns values if it needs. Supports transaction.
+func (s *Schema) TransactInsert(tx *sqlx.Tx, data interface{}, ext *database.InsertExt, args ...interface{}) error {
+	return s.insert(tx, data, ext, args...)
 }

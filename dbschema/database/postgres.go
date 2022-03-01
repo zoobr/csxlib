@@ -10,6 +10,8 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jmoiron/sqlx"
+
+	pkgerrs "github.com/pkg/errors"
 )
 
 // postgreSQL is a struct which implements Database interface for supproting PostgreSQL
@@ -138,6 +140,36 @@ func (pgsql *postgreSQL) Get(tx *sqlx.Tx, dest interface{}, query *Query, args .
 	return pgsql.conn.Get(dest, queryStr, args...)
 }
 
+// Insert executes INSERT statement which saves data to DB and returns values if it needs.
+func (pgsql *postgreSQL) Insert(tx *sqlx.Tx, prepared *PreparedData, tableName string, ext *InsertExt, args ...interface{}) error {
+	query, err := pgsql.prepareInsertStmt(tableName, prepared.DBFields, len(args), len(prepared.Values), prepared.Query, ext)
+	if err != nil {
+		return err
+	}
+	allArgs := append(args, prepared.Values...)
+
+	// RETURNING clause is exists
+	if ext != nil && ext.Returning != nil {
+		ret := ext.Returning
+		if ret.dest == nil {
+			return pkgerrs.New("missing destinations for RETURNING clause")
+		}
+
+		if tx != nil {
+			return tx.QueryRowx(query, allArgs...).Scan(ret.dest...)
+		}
+		return pgsql.conn.QueryRowx(query, allArgs...).Scan(ret.dest...)
+	}
+
+	// RETURNING clause is not exists
+	if tx != nil {
+		_, err = tx.Exec(query, allArgs...)
+	} else {
+		_, err = pgsql.conn.Exec(query, allArgs...)
+	}
+	return err
+}
+
 // ----------------------------------------------------------------------------
 // preparing query statements
 // ----------------------------------------------------------------------------
@@ -226,4 +258,87 @@ func (pgsql *postgreSQL) prepareAddColumnsStmt(tableName string, fields []*schem
 	sb.WriteByte(';')
 
 	return sb.String()
+}
+
+// prepareInsertStmt prepares INSERT statement.
+func (pgsql *postgreSQL) prepareInsertStmt(tableName string, fields []string, argsLen, valsLen int, q *Query, ext *InsertExt) (string, error) {
+	var sb strings.Builder
+	cntf := len(fields)
+
+	sb.WriteString("INSERT INTO ")
+	sb.WriteString(tableName)
+	sb.WriteString(" (")
+
+	for i := 0; i < cntf; i++ {
+		sb.WriteString(fmt.Sprintf(`"%s"`, fields[i]))
+		if i != cntf-1 { // if not last field
+			sb.WriteByte(',')
+		}
+	}
+	sb.WriteByte(')')
+
+	if q != nil {
+		// values gets from SELECT query
+		selectStmt, err := prepareQuery(q)
+		if err != nil {
+			return "", err
+		}
+		sb.WriteString(fmt.Sprintf("\n(%s)", selectStmt))
+	} else if ext != nil && len(ext.WhereNotExists) > 0 {
+		// values gets from WHERE NOT EXISTS query
+		sb.WriteString("\nSELECT ")
+
+		argNum := argsLen + 1
+		for i := 0; i < valsLen; i++ {
+			sb.WriteString(fmt.Sprintf("$%d", argNum))
+			if i != valsLen-1 { // not last arg
+				sb.WriteString(", ")
+			}
+			argNum++
+		}
+
+		sb.WriteString(" WHERE NOT EXISTS\n(SELECT * FROM ")
+		sb.WriteString(tableName)
+		sb.WriteString(" WHERE ")
+		sb.WriteString(ext.WhereNotExists)
+		sb.WriteByte(')')
+	} else {
+		//values gets from binding
+		sb.WriteString(" VALUES (")
+
+		argNum := 1
+		for i := 0; i < valsLen; i++ {
+			sb.WriteString(fmt.Sprintf("$%d", argNum))
+			if i != valsLen-1 { // not last arg
+				sb.WriteString(", ")
+			}
+			argNum++
+		}
+
+		sb.WriteByte(')')
+	}
+
+	if ext != nil {
+		if ext.OnConflict != nil {
+			conflict := ext.OnConflict
+			sb.WriteString(" ON CONFLICT (")
+			sb.WriteString(conflict.Object)
+			sb.WriteString(") DO ")
+			switch conflict.Strategy {
+			case OnConflictDoNothing:
+				sb.WriteString("NOTHING")
+			default:
+				return "", pkgerrs.New("wrong ON CONFLICT strategy")
+			}
+		}
+
+		if ext.Returning != nil {
+			sb.WriteString("\nRETURNING ")
+			sb.WriteString(ext.Returning.list)
+		}
+	}
+
+	sb.WriteByte(';')
+
+	return sb.String(), nil
 }
