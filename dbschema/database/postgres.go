@@ -64,7 +64,7 @@ func (pgsql *postgreSQL) GetColumnsInfo(tableName string) ([]*DBColumnInfo, erro
 	data := []*DBColumnInfo{}
 	query := `SELECT c.column_name AS "name", c.udt_name AS "type",
 			(CASE c.is_nullable WHEN 'YES' THEN true WHEN 'NO' THEN false END) AS "nullable",
-			COALESCE(c.character_maximum_length, 0) AS "length", c.column_default AS "default"
+			COALESCE(c.character_maximum_length, c.numeric_precision, 0) AS "length", c.column_default AS "default"
 		FROM information_schema."columns" c
 		WHERE c.table_name = $1;`
 
