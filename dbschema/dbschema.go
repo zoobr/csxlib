@@ -18,8 +18,9 @@ type Config struct {
 }
 
 var (
-	manager = schemaManager{} // instance of schema manager
-	config  = Config{}        //instance of config
+	manager         = schemaManager{}   // instance of schema manager
+	config          = Config{}          //instance of config
+	dataMigratedDBs = map[string]bool{} // set of databases that have already migrated data
 )
 
 // getNewSchemaFields returns list of new table columns
@@ -203,9 +204,13 @@ func Init(cfg *Config) {
 
 		// migrating data
 		if config.IsMigrateData {
+			if dataMigratedDBs[schema.DatabaseName] {
+				continue
+			}
 			if err := schema.dbs.master.Migrate(); err != nil {
 				panic(err)
 			}
+			dataMigratedDBs[schema.DatabaseName] = true
 		}
 	}
 }
