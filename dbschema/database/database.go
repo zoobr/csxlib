@@ -64,6 +64,17 @@ type DBColumnInfo struct {
 	Default  *string `db:"default"`  // default column value
 }
 
+// ReturningDest is a struct for lists of values & destinations for RETURNING clause of INSERT or UPDATE statements.
+type ReturningDest struct {
+	list string        // list of returned db columns
+	dest []interface{} // destinations for RETURNING clause
+}
+
+// Returning creates a struct for lists of values & destinations for RETURNING clause of INSERT or UPDATE statements.
+func Returning(list string, dest ...interface{}) *ReturningDest {
+	return &ReturningDest{list: list, dest: dest}
+}
+
 // NewDatabase creates new instance of Database interface using params
 func NewDatabase(params *DatabaseParams) (Database, error) {
 	if params.Name == "" {
