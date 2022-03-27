@@ -32,20 +32,26 @@ var (
 )
 
 var (
-	JSONEncoder      = 1
-	ConsoleEncoder   = 2
-	MapObjectEncoder = 3
-	defaultConfig    = Config{
+	// JSONEncoder JSON log format
+	JSONEncoder = 0
+	// ConsoleEncoder Console log format
+	ConsoleEncoder = 1
+
+	// default config
+	defaultConfig = Config{
 		LoggerMode:  "prod",
 		EncoderType: 1,
-		Colors:      false,
+		EncodeLevel: zapcore.CapitalLevelEncoder,
+		EncodeTime:  zapcore.RFC3339TimeEncoder,
 	}
 )
 
+// Config struct for init logger configaration
 type Config struct {
 	LoggerMode  string
 	EncoderType int
-	Colors      bool
+	EncodeLevel zapcore.LevelEncoder
+	EncodeTime  zapcore.TimeEncoder
 }
 
 func init() {
@@ -53,9 +59,22 @@ func init() {
 }
 
 func prepareConfig(config *Config) zapcore.Core {
+	// prepare config
 	if config == nil {
+		// use default config
+		fmt.Printf("No config set, default config will be used, prod mode, JSON encoder without colors")
 		config = &defaultConfig
+	} else {
+		// check config params and set defaults is empty
+		if config.EncodeLevel == nil {
+			config.EncodeLevel = zapcore.CapitalLevelEncoder
+		}
+		if config.TimeFormat == nil {
+			config.EncodeTime = zapcore.RFC3339TimeEncoder
+		}
 	}
+
+	// prepare logger mode
 	var configEncoder zapcore.EncoderConfig
 	logLevel := zapcore.DebugLevel
 	loggerMode := config.LoggerMode
@@ -70,9 +89,11 @@ func prepareConfig(config *Config) zapcore.Core {
 		}
 		configEncoder = zap.NewDevelopmentEncoderConfig()
 	}
-	if config.Colors {
-		configEncoder.EncodeLevel = zapcore.CapitalColorLevelEncoder
-	}
+
+	configEncoder.EncodeLevel = config.EncodeLevel
+	configEncoder.EncodeTime = config.EncodeTime
+
+	// prepare encoder
 	var newEncoder zapcore.Encoder
 	switch config.EncoderType {
 	case ConsoleEncoder:
@@ -94,14 +115,17 @@ func createLogger(config *Config) *zap.Logger {
 	return zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.PanicLevel))
 }
 
+// NewSugaredLogger constructor for create sugared logger
 func NewSugaredLogger(config *Config) *zap.SugaredLogger {
 	return createSugaredLogger(config)
 }
 
+// NewLogger constructor for create logger
 func NewLogger(config *Config) *zap.Logger {
 	return createLogger(config)
 }
 
+// Init prepare logger structure
 func Init(config *Config) {
 	logger = createSugaredLogger(config)
 	Debug = logger.Debug
