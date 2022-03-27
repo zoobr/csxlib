@@ -35,15 +35,30 @@ var (
 	JSONEncoder      = 1
 	ConsoleEncoder   = 2
 	MapObjectEncoder = 3
+	defaultConfig    = Config{
+		LoggerMode:  "prod",
+		EncoderType: 1,
+		Colors:      false,
+	}
 )
 
-func init() {
-	Init(defaultLoggerMode, ConsoleEncoder)
+type Config struct {
+	LoggerMode  string
+	EncoderType int
+	Colors      bool
 }
 
-func prepareConfig(loggerMode string, encoderType int) zapcore.Core {
+func init() {
+	Init(nil)
+}
+
+func prepareConfig(config *Config) zapcore.Core {
+	if config == nil {
+		config = &defaultConfig
+	}
 	var configEncoder zapcore.EncoderConfig
 	logLevel := zapcore.DebugLevel
+	loggerMode := config.LoggerMode
 	if loggerMode == loggerModeProd { // logger for development mode
 		configEncoder = zap.NewProductionEncoderConfig()
 		logLevel = zapcore.InfoLevel
@@ -55,9 +70,11 @@ func prepareConfig(loggerMode string, encoderType int) zapcore.Core {
 		}
 		configEncoder = zap.NewDevelopmentEncoderConfig()
 	}
-	configEncoder.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	if config.Colors {
+		configEncoder.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	}
 	var newEncoder zapcore.Encoder
-	switch encoderType {
+	switch config.EncoderType {
 	case ConsoleEncoder:
 		newEncoder = zapcore.NewConsoleEncoder(configEncoder)
 	default:
@@ -67,26 +84,26 @@ func prepareConfig(loggerMode string, encoderType int) zapcore.Core {
 	return core
 }
 
-func createSugaredLogger(loggerMode string, encoderType int) *zap.SugaredLogger {
-	core := prepareConfig(loggerMode, encoderType)
+func createSugaredLogger(config *Config) *zap.SugaredLogger {
+	core := prepareConfig(config)
 	return zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.PanicLevel)).Sugar()
 }
 
-func createLogger(loggerMode string, encoderType int) *zap.Logger {
-	core := prepareConfig(loggerMode, encoderType)
+func createLogger(config *Config) *zap.Logger {
+	core := prepareConfig(config)
 	return zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.PanicLevel))
 }
 
-func NewSugaredLogger(loggerMode string, encoderType int) *zap.SugaredLogger {
-	return createSugaredLogger(loggerMode, encoderType)
+func NewSugaredLogger(config *Config) *zap.SugaredLogger {
+	return createSugaredLogger(config)
 }
 
-func NewLogger(loggerMode string, encoderType int) *zap.Logger {
-	return createLogger(loggerMode, encoderType)
+func NewLogger(config *Config) *zap.Logger {
+	return createLogger(config)
 }
 
-func Init(loggerMode string, encoderType int) {
-	logger = createSugaredLogger(loggerMode, encoderType)
+func Init(config *Config) {
+	logger = createSugaredLogger(config)
 	Debug = logger.Debug
 	Debugf = logger.Debugf
 	Debugw = logger.Debugw
