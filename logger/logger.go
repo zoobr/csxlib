@@ -55,21 +55,31 @@ type Config struct {
 }
 
 func init() {
-	Init(nil)
+	logger = createSugaredLogger(nil)
+	Debug = logger.Debug
+	Debugf = logger.Debugf
+	Debugw = logger.Debugw
+	Error = logger.Error
+	Errorf = logger.Errorf
+	Info = logger.Info
+	Infof = logger.Infof
+	Warn = logger.Warn
+	Warnf = logger.Warnf
+	Panic = logger.Panic
+	Panicf = logger.Panicf
+	Sync = logger.Sync
 }
 
 func prepareConfig(config *Config) zapcore.Core {
 	// prepare config
 	if config == nil {
-		// use default config
-		fmt.Printf("No config set, default config will be used, prod mode, JSON encoder without colors")
 		config = &defaultConfig
 	} else {
 		// check config params and set defaults is empty
 		if config.EncodeLevel == nil {
 			config.EncodeLevel = zapcore.CapitalLevelEncoder
 		}
-		if config.TimeFormat == nil {
+		if config.EncodeTime == nil {
 			config.EncodeTime = zapcore.RFC3339TimeEncoder
 		}
 	}
@@ -128,16 +138,4 @@ func NewLogger(config *Config) *zap.Logger {
 // Init prepare logger structure
 func Init(config *Config) {
 	logger = createSugaredLogger(config)
-	Debug = logger.Debug
-	Debugf = logger.Debugf
-	Debugw = logger.Debugw
-	Error = logger.Error
-	Errorf = logger.Errorf
-	Info = logger.Info
-	Infof = logger.Infof
-	Warn = logger.Warn
-	Warnf = logger.Warnf
-	Panic = logger.Panic
-	Panicf = logger.Panicf
-	Sync = logger.Sync
 }
