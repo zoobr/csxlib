@@ -16,22 +16,32 @@ const (
 )
 
 var (
-	logger *zap.Logger
+	logger *zap.SugaredLogger
+	Debug  func(...interface{})
+	Debugf func(string, ...interface{})
+	Debugw func(string, ...interface{})
+	Info   func(...interface{})
+	Infof  func(string, ...interface{})
+	Warn   func(...interface{})
+	Warnf  func(string, ...interface{})
+	Error  func(...interface{})
+	Errorf func(string, ...interface{})
+	Panic  func(...interface{})
+	Panicf func(string, ...interface{})
+	Sync   func() error
+)
 
-	Trace func(msg string, fields ...zapcore.Field)
-	Info  func(msg string, fields ...zapcore.Field)
-	Warn  func(msg string, fields ...zapcore.Field)
-	Error func(msg string, fields ...zapcore.Field)
-	Fatal func(msg string, fields ...zapcore.Field)
-	Sugar *zap.SugaredLogger
-	Sync  func() error
+var (
+	JSONEncoder      = 1
+	ConsoleEncoder   = 2
+	MapObjectEncoder = 3
 )
 
 func init() {
-	InitLogger(defaultLoggerMode)
+	Init(defaultLoggerMode, ConsoleEncoder)
 }
 
-func createLogger(loggerMode string) *zap.Logger {
+func prepareConfig(loggerMode string, encoderType int) zapcore.Core {
 	var configEncoder zapcore.EncoderConfig
 	logLevel := zapcore.DebugLevel
 	if loggerMode == loggerModeProd { // logger for development mode
@@ -46,21 +56,47 @@ func createLogger(loggerMode string) *zap.Logger {
 		configEncoder = zap.NewDevelopmentEncoderConfig()
 	}
 	configEncoder.EncodeLevel = zapcore.CapitalColorLevelEncoder
-	core := zapcore.NewCore(zapcore.NewJSONEncoder(configEncoder), os.Stdout, logLevel)
+	var newEncoder zapcore.Encoder
+	switch encoderType {
+	case ConsoleEncoder:
+		newEncoder = zapcore.NewConsoleEncoder(configEncoder)
+	default:
+		newEncoder = zapcore.NewJSONEncoder(configEncoder)
+	}
+	core := zapcore.NewCore(newEncoder, os.Stdout, logLevel)
+	return core
+}
+
+func createSugaredLogger(loggerMode string, encoderType int) *zap.SugaredLogger {
+	core := prepareConfig(loggerMode, encoderType)
+	return zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.PanicLevel)).Sugar()
+}
+
+func createLogger(loggerMode string, encoderType int) *zap.Logger {
+	core := prepareConfig(loggerMode, encoderType)
 	return zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.PanicLevel))
 }
 
-func NewLogger(loggerMode string) *zap.Logger {
-	return createLogger(loggerMode)
+func NewSugaredLogger(loggerMode string, encoderType int) *zap.SugaredLogger {
+	return createSugaredLogger(loggerMode, encoderType)
 }
 
-func InitLogger(loggerMode string) {
-	logger = createLogger(loggerMode)
-	Trace = logger.Debug
+func NewLogger(loggerMode string, encoderType int) *zap.Logger {
+	return createLogger(loggerMode, encoderType)
+}
+
+func Init(loggerMode string, encoderType int) {
+	logger = createSugaredLogger(loggerMode, encoderType)
+	Debug = logger.Debug
+	Debugf = logger.Debugf
+	Debugw = logger.Debugw
 	Error = logger.Error
+	Errorf = logger.Errorf
 	Info = logger.Info
+	Infof = logger.Infof
 	Warn = logger.Warn
-	Fatal = logger.Panic
-	Sugar = logger.Sugar()
+	Warnf = logger.Warnf
+	Panic = logger.Panic
+	Panicf = logger.Panicf
 	Sync = logger.Sync
 }
